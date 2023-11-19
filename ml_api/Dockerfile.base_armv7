@@ -1,5 +1,5 @@
 # Darknet Builder Stage
-FROM arm32v7/ubuntu:latest as darknet_builder_jetson
+FROM nvcr.io/nvidia/l4t-tensorrt:r8.0.1-runtime as darknet_builder_jetson
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y ca-certificates build-essential gcc g++ cmake git
 WORKDIR /
@@ -18,7 +18,7 @@ RUN cd darknet \
   && make -j 4 && mv libdarknet.so libdarknet_gpu.so
 
 # Main Image Stage
-FROM arm32v7/ubuntu:latest as ml_api_base_jetson
+FROM nvcr.io/nvidia/l4t-tensorrt:r8.0.1-runtime as ml_api_base_jetson
 
 COPY --from=darknet_builder_jetson /darknet /darknet
 
