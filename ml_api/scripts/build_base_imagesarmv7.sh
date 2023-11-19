@@ -24,7 +24,7 @@ fi
 # CPU + GPU image for amd64
 VERSION_BASE=${PREFIX}/ml_api_base:${VERSION}
 echo Building $VERSION_BASE
-docker build --platform linux/arm/v7 -f Dockerfile.base_arm64 -t ${VERSION_BASE}-linux-armv7 .
+docker buildx --platform linux/arm/v7 -f Dockerfile.base_arm64 -t ${VERSION_BASE}-linux-armv7 .
 docker push ${VERSION_BASE}-linux-armv7
 docker manifest create ${INSECURE} ${VERSION_BASE} --amend ${VERSION_BASE}-linux-armv7
 docker manifest push ${INSECURE} ${VERSION_BASE}
