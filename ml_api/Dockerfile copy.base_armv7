@@ -1,0 +1,40 @@
+# Darknet Builder Stage
+FROM arm32v7/ubuntu:latest as darknet_builder_jetson
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y ca-certificates build-essential gcc g++ cmake git
+WORKDIR /
+# Lock darknet version for reproducibility
+RUN git clone https://github.com/AlexeyAB/darknet --depth 1 && cd darknet && git checkout 59c86222c5387bffd9108a21885f80e980ece234
+ENV LIBRARY_PATH="${LIBRARY_PATH}:/usr/local/cuda/targets/aarch64-linux/lib:/usr/local/cuda/targets/aarch64-linux/lib/stubs"
+# Compile CPU version
+RUN cd darknet \
+  && sed -i 's/LIBSO=0/LIBSO=1/' Makefile \
+  && make -j 4 && mv libdarknet.so libdarknet_cpu.so
+# Compile GPU version
+RUN cd darknet \
+  && sed -i 's/GPU=0/GPU=1/' Makefile \
+  && sed -i 's/lcudart/lcudart_static -ldl -lrt/' Makefile \
+  && make -j 4 && mv libdarknet.so libdarknet_gpu.so
+
+# Main Image Stage
+FROM arm32v7/ubuntu:latest as ml_api_base_jetson
+
+COPY --from=darknet_builder_jetson /darknet /darknet
+
+WORKDIR /
+RUN wget https://nvidia.box.com/shared/static/2sv2fv1wseihaw8ym0d4srz41dzljwxh.whl -O onnxruntime_gpu-1.11.0-cp38-none-any.whl
+RUN pip3 install onnxruntime_gpu-1.11.0-cp38-none-any.whl
+
+# Some hacks to make Darknet see CUDA libraries. May fail easily.
+# This is only needed for Jetpack 4x and will not be needed for Jetpack 5.
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/cuda/targets/aarch64-linux/lib"
+
+WORKDIR /app
+RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates python3-pip wget
+RUN pip install --upgrade pip
+RUN pip install opencv-python-headless
+
+ADD requirements.txt ./
+RUN pip install -r requirements.txt
+
+EXPOSE 3333
